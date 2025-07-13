@@ -1,7 +1,7 @@
 import { Home, Bell, BellOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
-import walmartLogo from "@/assets/walmart-logo.png"
+import walmartLogo from "@/assets/log.png"
 
 interface NavbarProps {
   notificationsMuted: boolean
@@ -14,11 +14,12 @@ export function Navbar({ notificationsMuted, onToggleNotifications }: NavbarProp
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
         {/* Left - Logo */}
         <div className="flex items-center gap-3">
-          <img 
-            src={walmartLogo} 
-            alt="Walmart" 
-            className="h-8 w-auto brightness-0 invert"
-          />
+        <img 
+         src={walmartLogo}
+        alt="Walmart Logo" 
+         className="h-8 w-auto"
+/>
+
           <span className="text-lg font-semibold text-primary-foreground">
             Inventory Dashboard
           </span>
