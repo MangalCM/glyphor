@@ -1,0 +1,33 @@
+{
+  "name": "ts_files",
+  "version": "1.0.0",
+  "description": "glyphor connection with drizzle orm",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MangalCM/glyphor.git"
+  },
+  "keywords": [
+    "neon",
+    "drizzle",
+    "inventory",
+    "walmart",
+    "glyphor"
+  ],
+  "author": "Pradheep",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/MangalCM/glyphor/issues"
+  },
+  "homepage": "https://github.com/MangalCM/glyphor#readme",
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4",
+    "drizzle-orm": "^0.44.2"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.4"
+  }
+}
