@@ -1,4 +1,4 @@
-import { pgTable, serial, text, varchar, boolean, timestamp, integer, uuid, doublePrecision, PgEnum, pgEnum, PgArray, time } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, varchar, boolean, timestamp, integer, uuid, doublePrecision,  pgEnum, time } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 //so need to design the schemas here
@@ -235,17 +235,4 @@ export const spikeMonitoringRelations = relations(spikeMonitoring, ({ one }) => 
 export const locationRelations = relations(location, ({ many }) => ({
     inventories: many(inventory),
 }));
-
-
-export const dbSchema = {
-    inventory,
-    items,
-    triggerMessage,
-    relocationMessage,
-    forecastingMetrics,
-    admin,
-    spikeMonitoring,
-    location,
-    inventoryItems,
-};
 
