@@ -30,7 +30,7 @@ export function Dashboard() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-3xl font-bold text-foreground">
-                Walmart Inventory Dashboard
+                GLYPHOR Dashboard
               </h1>
               <p className="text-muted-foreground mt-1">
                 Real-time inventory redistribution and demand monitoring
