@@ -73,4 +73,4 @@ with open("inventory_log.csv", "a", newline='') as file:
             result["status"]
         ])
 
-        print(f"✅ Logged → {timestamp_str} | Demand: {demand} | Status: {result['status']}")
+        print(f" Logged → {timestamp_str} | Demand: {demand} | Status: {result['status']}")
