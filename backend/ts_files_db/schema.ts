@@ -20,7 +20,10 @@ export const inventory = pgTable('inventory', {
     volumeReserved: doublePrecision('volume_reserved').notNull(),
     name: varchar('name', { length: 255 }).notNull(),
     description: text('description').notNull(),
-    thereshold : integer('threshold').notNull(),
+    threshold: integer('threshold').notNull(),
+    locationId: integer("location_id")
+        .notNull()
+        .references(() => location.id, { onDelete: 'cascade' }),
     status: inventoryEnum('status').notNull().default('healthy'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().$onUpdateFn(() => new Date()),
@@ -68,7 +71,11 @@ export const relocationMessage = pgTable("relocation_message", {
     toInventoryId: integer("to_inventory_id")
         .notNull()
         .references(() => inventory.id, { onDelete: 'cascade' }),
+    quantity: integer("quantity").notNull(), 
+    priority: varchar("priority", { length: 50 }).default("medium"),
+    estimatedCompletionTime: timestamp("estimated_completion_time", { withTimezone: true }),
     status: relocationStatusEnum("status").notNull().default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(), 
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdateFn(() => new Date()),
 });
 
@@ -81,17 +88,71 @@ export const forecastingMetrics = pgTable("forecasting_metrics", {
     howMuchTimeToFill: time("how_much_time_to_fill").notNull(),
     predictedDemand: doublePrecision("predicted_demand").notNull(),
     actualDemand: doublePrecision("actual_demand").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow()
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdateFn(() => new Date()),
 });
 
 //6. admin -> admin_id, name, email, password, created_at, updated_at
 export const admin = pgTable("admin", {
+    admin_id : serial("admin_id").primaryKey(),
+    name : varchar("name", { length: 255 }).notNull(),
+    email : varchar("email", { length: 255 }).notNull().unique(),
+    password : varchar("password", { length: 255 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdateFn(() => new Date()),
+});
 
-})
+//7. spike_monitoring -> spike_monitoring_id, inventory_id, created_at, updated_at
+export const spikeMonitoring = pgTable("spike_monitoring", {
+    spikeMonitoringId: serial("spike_monitoring_id").primaryKey(),
+    inventoryId: integer("inventory_id")
+        .notNull()
+        .references(() => inventory.id, { onDelete: 'cascade' }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdateFn(() => new Date()),
+});
 
-//7. spike_monitoring -> 
+//8. location -> latitude, longitude, address, city, state, country, zip_code
+export const location = pgTable("location", {
+    id: serial("id").primaryKey(),
+    latitude: doublePrecision("latitude").notNull(),
+    longitude: doublePrecision("longitude").notNull(),
+    address: varchar("address", { length: 255 }).notNull(),
+    city: varchar("city", { length: 100 }).notNull(),
+    state: varchar("state", { length: 100 }).notNull(),
+    country: varchar("country", { length: 100 }).notNull(),
+    zipCode: varchar("zip_code", { length: 10 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdateFn(() => new Date()),
+});
 
-//8. location -> coordinates
+// 9. demand history -> demand_history_id, inventory_id, item_id, demand_quantity, timestamp, source
+export const demandHistory = pgTable("demand_history", {
+    id: serial("id").primaryKey(),
+    inventoryId: integer("inventory_id")
+        .notNull()
+        .references(() => inventory.id, { onDelete: 'cascade' }),
+    itemId: integer("item_id")
+        .notNull()
+        .references(() => items.item_id, { onDelete: 'cascade' }),
+    demandQuantity: integer("demand_quantity").notNull(),
+    timestamp: timestamp("timestamp", { withTimezone: true }).notNull(),
+    source: varchar("source", { length: 100 }), // e.g., "order", "forecast", "manual"
+});
+
+// 10. real time alerts -> real_time_alerts_id, inventory_id, alert_type, severity, message, is_resolved, created_at, resolved_at
+export const realTimeAlerts = pgTable("real_time_alerts", {
+    id: serial("id").primaryKey(),
+    inventoryId: integer("inventory_id")
+        .notNull()
+        .references(() => inventory.id, { onDelete: 'cascade' }),
+    alertType: varchar("alert_type", { length: 100 }).notNull(), // "stockout", "overstock", "demand_spike"
+    severity: varchar("severity", { length: 50 }).notNull(), // "low", "medium", "high", "critical"
+    message: text("message").notNull(),
+    isResolved: boolean("is_resolved").default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+});
 
 //now we need to integrate the items with inventory
 export const inventoryItems = pgTable("inventory_items", {
@@ -106,9 +167,17 @@ export const inventoryItems = pgTable("inventory_items", {
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdateFn(() => new Date()),
 });
 
-//the realtion over here
-export const inventoryRelations = relations(inventory, ({ many }) => ({
+//the relations over here
+export const inventoryRelations = relations(inventory, ({ many, one }) => ({
     items: many(inventoryItems),
+    location: one(location, {
+        fields: [inventory.locationId],
+        references: [location.id],
+    }),
+    triggerMessages: many(triggerMessage),
+    relocationMessages: many(relocationMessage),
+    forecastingMetrics: many(forecastingMetrics),
+    spikeMonitoring: many(spikeMonitoring),
 }));
 
 export const itemRelations = relations(items, ({ many }) => ({
@@ -125,4 +194,58 @@ export const inventoryItemRelations = relations(inventoryItems, ({ one }) => ({
         references: [items.item_id],
     }),
 }));
+
+export const triggerMessageRelations = relations(triggerMessage, ({ one }) => ({
+    inventory: one(inventory, {
+        fields: [triggerMessage.inventoryId],
+        references: [inventory.id],
+    }),
+}));
+
+export const relocationMessageRelations = relations(relocationMessage, ({ one }) => ({
+    fromInventory: one(inventory, {
+        fields: [relocationMessage.fromInventoryId],
+        references: [inventory.id],
+    }),
+    toInventory: one(inventory, {
+        fields: [relocationMessage.toInventoryId],
+        references: [inventory.id],
+    }),
+}));
+
+export const forecastingMetricsRelations = relations(forecastingMetrics, ({ one }) => ({
+    inventory: one(inventory, {
+        fields: [forecastingMetrics.inventoryId],
+        references: [inventory.id],
+    }),
+
+}));
+
+export const adminRelations = relations(admin, ({ many }) => ({
+    inventories: many(inventory),
+}));
+
+export const spikeMonitoringRelations = relations(spikeMonitoring, ({ one }) => ({
+    inventory: one(inventory, {
+        fields: [spikeMonitoring.inventoryId],
+        references: [inventory.id],
+    }),
+}));
+
+export const locationRelations = relations(location, ({ many }) => ({
+    inventories: many(inventory),
+}));
+
+
+export const dbSchema = {
+    inventory,
+    items,
+    triggerMessage,
+    relocationMessage,
+    forecastingMetrics,
+    admin,
+    spikeMonitoring,
+    location,
+    inventoryItems,
+};
 
