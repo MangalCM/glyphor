@@ -12,6 +12,8 @@ import { NotificationPanel } from "./notification-panel";
 import { ExcelUpload } from "./excel-upload";
 import { NotificationProvider, useNotifications } from "@/hooks/use-notifications";
 import { Newspaper, TrendingUp, AlertTriangle, Map } from "lucide-react";
+import { ArrowDown } from "lucide-react";
+import TailoredDynamicBadge from "./dynamic_highlighting";
 
 function DashboardContent() {
   const { callApi } = useAuthenticatedApi();
@@ -101,7 +103,7 @@ function DashboardContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen  min-w-screenbg-gray-50">
       <Navbar 
         notifications={notifications}
         onNotificationRead={markAsRead}
@@ -109,9 +111,11 @@ function DashboardContent() {
         onMarkAllAsRead={markAllAsRead}
         onClearAllNotifications={clearAll}
       />
+      <br />
+      <br />
       
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
+      <div className="container mt-30 px-4 py-8 min-w-screen">
+        {/* <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Welcome back{user?.firstName ? `, ${user.firstName}` : ''}!
           </h1>
@@ -123,9 +127,9 @@ function DashboardContent() {
               <p className="text-green-700">{data.message}</p>
             </div>
           )}
-        </div>
+        </div> */}
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+        <div className="gap-6 mb-8 min-w-screen">
           <div className="lg:col-span-3">
             <Card className="p-6">
               <Tabs defaultValue="headlines" className="w-full">
@@ -167,12 +171,11 @@ function DashboardContent() {
             </Card>
           </div>
           
-          <div className="space-y-6">
-            <NotificationPanel
-              muted={notificationsMuted}
-            />
-            
-            <ExcelUpload />
+          <div className="space-y-2 mt-6">
+            <TailoredDynamicBadge/>
+          </div>
+          <div className="mt-3">
+            <ExcelUpload/>  
           </div>
         </div>
       </div>
