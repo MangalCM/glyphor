@@ -2,7 +2,7 @@
   "name": "ts_files",
   "version": "1.0.0",
   "description": "glyphor connection with drizzle orm",
-  "main": "index.js",
+  "main": "ts_files_db/index.js",
   "scripts": {
     "test": "npm test"
   },

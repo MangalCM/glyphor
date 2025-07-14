@@ -10,9 +10,10 @@ import {
     location, 
     inventoryItems,
     demandHistory,
-    realTimeAlerts
+    realTimeAlerts,
+    dashboardMetrics
 } from './schema.js';
-import {eq, and, or, inArray, asc, desc} from 'drizzle-orm';
+import {eq, and, or, inArray, asc, desc, gte} from 'drizzle-orm';
 
 //inventory ops
 export const inventory_ops = {
@@ -621,6 +622,16 @@ export const realtimealert_ops = {
         }catch(err) {
             return {success: false, error: err.message};
         }
+    },
+
+    //get by inventory id
+    async getByInventoryId(inventoryId){
+        try{
+            const result = await db.select().from(realTimeAlerts).where(eq(realTimeAlerts.inventoryId, inventoryId));
+            return {success: true, data: result};
+        }catch(err) {
+            return {success: false, error: err.message};
+        }
     }
 };
 
@@ -791,6 +802,59 @@ export default {
     utility: utility_ops
 };
 
+//dashboar metrics ops
+export const dashboardmetrics_ops = {
+
+    async getAll(){
+        try{
+            const res = await db.select().from(dashboardMetrics);
+            return { success: true, data: res };
+        }catch(err){
+            return { success: false, error: err };
+        }
+    }, 
+    async recordDailyMetrics(data) {
+        try {
+            const result = await db.insert(dashboardMetrics).values(data).returning();
+            return { success: true, data: result };
+        } catch (err) {
+            return { success: false, error: err.message };
+        }
+    },
+
+    async getPreviousMetrics(metricType, daysBack = 7) {
+        try {
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+            
+            const result = await db.select()
+                .from(dashboardMetrics)
+                .where(and(
+                    eq(dashboardMetrics.metricType, metricType),
+                    gte(dashboardMetrics.recordedAt, cutoffDate)
+                ))
+                .orderBy(desc(dashboardMetrics.recordedAt))
+                .limit(1);
+            
+            return { success: true, data: result };
+        } catch (err) {
+            return { success: false, error: err };
+        }
+    },
+
+    async getMetricsByDate(date) {
+        try {
+            const result = await db.select()
+                .from(dashboardMetrics)
+                .where(eq(dashboardMetrics.recordedAt, date));
+            return { success: true, data: result };
+        } catch (err) {
+            return { success: false, error: err.message };
+        }
+    }
+};
+
+
 
 if (process.argv.length >= 3) {
     const operation = process.argv[2];
@@ -809,7 +873,8 @@ if (process.argv.length >= 3) {
         realtimealert_ops,
         admin_ops,
         spikemonitoring_ops,
-        utility_ops
+        utility_ops,
+        dashboardmetrics_ops
     };
     
     if (module && method && operations[module] && operations[module][method]) {
@@ -849,6 +914,17 @@ if (process.argv.length >= 3) {
         } else if (method === 'removeItem' && Array.isArray(data) && data.length === 2) {
             const [inventoryId, itemId] = data;
             operations[module][method](inventoryId, itemId)
+                .then(result => {
+                    console.log(JSON.stringify(result));
+                    process.exit(0);
+                })
+                .catch(error => {
+                    console.error(JSON.stringify({ success: false, error: error.message }));
+                    process.exit(1);
+                });
+        } else if (method === 'getPreviousMetrics' && Array.isArray(data) && data.length >= 1) {
+            const [metricType, daysBack] = data;
+            operations[module][method](metricType, daysBack)
                 .then(result => {
                     console.log(JSON.stringify(result));
                     process.exit(0);

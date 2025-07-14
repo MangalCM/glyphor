@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { inventory, forecastingMetrics, inventoryItems, items, relocationMessage, location, realTimeAlerts, spikeMonitoring, demandHistory, triggerMessage } from "./schema";
+import { inventory, forecastingMetrics, inventoryItems, items, relocationMessage, realTimeAlerts, spikeMonitoring, location, demandHistory, triggerMessage } from "./schema";
 
 export const forecastingMetricsRelations = relations(forecastingMetrics, ({one}) => ({
 	inventory: one(inventory, {
@@ -17,12 +17,12 @@ export const inventoryRelations = relations(inventory, ({one, many}) => ({
 	relocationMessages_toInventoryId: many(relocationMessage, {
 		relationName: "relocationMessage_toInventoryId_inventory_id"
 	}),
+	realTimeAlerts: many(realTimeAlerts),
+	spikeMonitorings: many(spikeMonitoring),
 	location: one(location, {
 		fields: [inventory.locationId],
 		references: [location.id]
 	}),
-	realTimeAlerts: many(realTimeAlerts),
-	spikeMonitorings: many(spikeMonitoring),
 	demandHistories: many(demandHistory),
 	triggerMessages: many(triggerMessage),
 }));
@@ -61,10 +61,6 @@ export const relocationMessageRelations = relations(relocationMessage, ({one}) =
 	}),
 }));
 
-export const locationRelations = relations(location, ({many}) => ({
-	inventories: many(inventory),
-}));
-
 export const realTimeAlertsRelations = relations(realTimeAlerts, ({one}) => ({
 	inventory: one(inventory, {
 		fields: [realTimeAlerts.inventoryId],
@@ -77,6 +73,10 @@ export const spikeMonitoringRelations = relations(spikeMonitoring, ({one}) => ({
 		fields: [spikeMonitoring.inventoryId],
 		references: [inventory.id]
 	}),
+}));
+
+export const locationRelations = relations(location, ({many}) => ({
+	inventories: many(inventory),
 }));
 
 export const demandHistoryRelations = relations(demandHistory, ({one}) => ({

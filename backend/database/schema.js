@@ -154,6 +154,16 @@ export const realTimeAlerts = pgTable("real_time_alerts", {
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
 });
 
+export const dashbEnum = pgEnum("dashboard_metrics_enum", ["migrated", "reallocated", "cost_savings", "critical_alerts"]);
+//11. adding dashoboard metrics t store and check daily
+export const dashboardMetrics = pgTable("dashboard_metrics", {
+    id: serial("id").primaryKey(),
+    metricType: dashbEnum("metric_type").notNull(), 
+    value: integer("value").notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).defaultNow(),
+    period: varchar("period", { length: 20 }).notNull().default("daily"), 
+});
+
 //now we need to integrate the items with inventory
 export const inventoryItems = pgTable("inventory_items", {
     inventoryId: integer("inventory_id")

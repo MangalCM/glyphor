@@ -22,7 +22,6 @@ def forecast():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading log file: {str(e)}")
 
-    # ✅ Call the correct model based on log count
     if log_count >= 1000:
         try:
             forecast_df = run_incremental_lstm()
