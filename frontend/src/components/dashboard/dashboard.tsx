@@ -1,30 +1,60 @@
-import { useState, useEffect } from "react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card } from "@/components/ui/card"
-import { Navbar } from "./navbar"
-import { HeadlineTab } from "./headline-tab"
-import { InventoryTab } from "./forecasting-tab"
-import { SpikeMonitoringTab } from "./spike-monitoring-tab"
-import { MapViewTab } from "./map-view-tab"
-import { NotificationPanel } from "./notification-panel"
-import { ExcelUpload } from "./excel-upload"
-import { NotificationProvider, useNotifications } from "@/hooks/use-notifications"
-import { Newspaper, TrendingUp, AlertTriangle, Map } from "lucide-react"
+import React, { useState, useEffect } from 'react';
+import { useAuthenticatedApi } from '@/hooks/useAuth';
+import { useUser } from '@clerk/clerk-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card } from "@/components/ui/card";
+import { Navbar } from "./navbar";
+import { HeadlineTab } from "./headline-tab";
+import { InventoryTab } from "./forecasting-tab";
+import { SpikeMonitoringTab } from "./spike-monitoring-tab";
+import { MapViewTab } from "./map-view-tab";
+import { NotificationPanel } from "./notification-panel";
+import { ExcelUpload } from "./excel-upload";
+import { NotificationProvider, useNotifications } from "@/hooks/use-notifications";
+import { Newspaper, TrendingUp, AlertTriangle, Map } from "lucide-react";
 
 function DashboardContent() {
-  const [notificationsMuted, setNotificationsMuted] = useState(false)
-  const {
-    notifications,
-    addNotification,
-    removeNotification,
-    markAsRead,
-    markAllAsRead,
-    clearAll
-  } = useNotifications()
+  const { callApi } = useAuthenticatedApi();
+  const { user, isLoaded } = useUser();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [notificationsMuted, setNotificationsMuted] = useState(false);
+  const { notifications, addNotification, removeNotification, markAsRead, markAllAsRead, clearAll } = useNotifications();
+
+  const fetchProtectedData = async () => {
+    if (!user) {
+      console.log('User not authenticated yet');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const result = await callApi('/protected');
+      setData(result);
+      console.log('Protected data fetched:', result);
+    } catch (error) {
+      console.error('Error fetching protected data:', error);
+      // You can add error notification here
+      addNotification({
+        title: "API Error",
+        message: "Failed to fetch protected data from backend",
+        type: "error"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const toggleNotifications = () => {
-    setNotificationsMuted(!notificationsMuted)
-  }
+    setNotificationsMuted(!notificationsMuted);
+  };
+
+  // Fetch protected data on component mount
+  useEffect(() => {
+    if (user && isLoaded) {
+      fetchProtectedData();
+    }
+  }, [user, isLoaded]);
 
   // Demo: Add some sample notifications on component mount
   useEffect(() => {
@@ -49,17 +79,29 @@ function DashboardContent() {
         message: "Forecasting model has been updated with latest market data",
         type: "info" as const
       }
-    ]
+    ];
 
     // Add notifications with delay to simulate real-time
     sampleNotifications.forEach((notification, index) => {
       setTimeout(() => {
-        addNotification(notification)
-      }, (index + 1) * 2000)
-    })
-  }, [addNotification])
+        addNotification(notification);
+      }, (index + 1) * 2000);
+    });
+  }, [addNotification]);
+
+  if (!isLoaded || (loading && !data)) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+          <p className="mt-4 text-lg">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gray-50">
       <Navbar 
         notificationsMuted={notificationsMuted}
         onToggleNotifications={toggleNotifications}
@@ -70,86 +112,80 @@ function DashboardContent() {
         onClearAllNotifications={clearAll}
       />
       
-      {/* Main Content */}
-      <main className="pt-20 pb-8">
-        <div className="container mx-auto px-4">
-          {/* Header with Upload */}
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">
-                GLYPHOR Dashboard
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                Real-time inventory redistribution and demand monitoring
-              </p>
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Welcome back{user?.firstName ? `, ${user.firstName}` : ''}!
+          </h1>
+          <p className="text-gray-600">
+            Real-time inventory redistribution and demand monitoring
+          </p>
+          {data && (
+            <div className="mt-4 p-4 bg-green-100 border border-green-400 rounded">
+              <p className="text-green-700">{data.message}</p>
             </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+          <div className="lg:col-span-3">
+            <Card className="p-6">
+              <Tabs defaultValue="headlines" className="w-full">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="headlines" className="flex items-center gap-2">
+                    <Newspaper className="h-4 w-4" />
+                    Headlines
+                  </TabsTrigger>
+                  <TabsTrigger value="inventory" className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4" />
+                    Forecasting
+                  </TabsTrigger>
+                  <TabsTrigger value="monitoring" className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    Spike Monitoring
+                  </TabsTrigger>
+                  <TabsTrigger value="map" className="flex items-center gap-2">
+                    <Map className="h-4 w-4" />
+                    Map View
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="headlines" className="mt-6">
+                  <HeadlineTab />
+                </TabsContent>
+                
+                <TabsContent value="inventory" className="mt-6">
+                  <InventoryTab />
+                </TabsContent>
+                
+                <TabsContent value="monitoring" className="mt-6">
+                  <SpikeMonitoringTab />
+                </TabsContent>
+                
+                <TabsContent value="map" className="mt-6">
+                  <MapViewTab />
+                </TabsContent>
+              </Tabs>
+            </Card>
+          </div>
+          
+          <div className="space-y-6">
+            <NotificationPanel
+              muted={notificationsMuted}
+            />
+            
             <ExcelUpload />
           </div>
-
-          {/* Main Tabs */}
-          <Card className="border-0 shadow-lg">
-            <Tabs defaultValue="headline" className="w-full">
-              <TabsList className="grid w-full grid-cols-4 bg-muted/50 p-1 h-auto">
-                <TabsTrigger 
-                  value="headline" 
-                  className="flex items-center gap-2 p-3 data-[state=active]:bg-background data-[state=active]:shadow-sm"
-                >
-                  <Newspaper className="h-4 w-4" />
-                  <span className="hidden sm:inline">Headline</span>
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="forecasting"
-                  className="flex items-center gap-2 p-3 data-[state=active]:bg-background data-[state=active]:shadow-sm"
-                >
-                  <TrendingUp className="h-4 w-4" />
-                  <span className="hidden sm:inline">Forecasting</span>
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="spike-monitoring"
-                  className="flex items-center gap-2 p-3 data-[state=active]:bg-background data-[state=active]:shadow-sm"
-                >
-                  <AlertTriangle className="h-4 w-4" />
-                  <span className="hidden sm:inline">Spike Monitoring</span>
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="map-view"
-                  className="flex items-center gap-2 p-3 data-[state=active]:bg-background data-[state=active]:shadow-sm"
-                >
-                  <Map className="h-4 w-4" />
-                  <span className="hidden sm:inline">Map View</span>
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="headline" className="mt-0">
-                <HeadlineTab />
-              </TabsContent>
-
-              <TabsContent value="forecasting" className="mt-0">
-                <InventoryTab />
-              </TabsContent>
-
-              <TabsContent value="spike-monitoring" className="mt-0">
-                <SpikeMonitoringTab />
-              </TabsContent>
-
-              <TabsContent value="map-view" className="mt-0">
-                <MapViewTab />
-              </TabsContent>
-            </Tabs>
-          </Card>
         </div>
-      </main>
-
-      {/* Floating Notifications */}
-      {!notificationsMuted && <NotificationPanel muted={notificationsMuted} />}
+      </div>
     </div>
-  )
+  );
 }
 
-export function Dashboard() {
+export const Dashboard = () => {
   return (
     <NotificationProvider>
       <DashboardContent />
     </NotificationProvider>
-  )
-}
+  );
+};
