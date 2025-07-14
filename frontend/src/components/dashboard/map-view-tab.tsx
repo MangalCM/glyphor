@@ -1,13 +1,113 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { MapPin, Warehouse, Store, AlertCircle, CheckCircle2, AlertTriangle, X, RotateCcw } from "lucide-react"
+import { MapPin as MapPinIcon, Warehouse, Store, AlertCircle, CheckCircle2, AlertTriangle, X, RotateCcw, Package } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { MapPin } from "@/components/ui/map-pin"
 
 // Google Maps API Key
 const GOOGLE_MAPS_API_KEY = "AIzaSyClpKU3XANIuJepts0m_v8gRK0CRC9QGk8"
+
+// Helper function to create custom map pin SVG
+const createMapPinSVG = (type: 'mfc' | 'inventory' | 'store' | 'route-start' | 'route-end', status?: string, size: number = 40) => {
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'overstocked': return { bg: '#ef4444', border: '#dc2626' }
+      case 'stockout_risk': return { bg: '#f59e0b', border: '#d97706' }
+      case 'stable': return { bg: '#10b981', border: '#059669' }
+      default: return { bg: '#6b7280', border: '#4b5563' }
+    }
+  }
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'mfc': return { bg: '#2563eb', border: '#1d4ed8' }
+      case 'inventory': return { bg: '#059669', border: '#047857' }
+      case 'store': return { bg: '#7c3aed', border: '#6d28d9' }
+      case 'route-start': return { bg: '#16a34a', border: '#15803d' }
+      case 'route-end': return { bg: '#dc2626', border: '#b91c1c' }
+      default: return { bg: '#6b7280', border: '#4b5563' }
+    }
+  }
+
+  const getIcon = (type: string) => {
+    const iconSize = size * 0.4
+    const iconX = size / 2
+    const iconY = size / 2
+
+    switch (type) {
+      case 'mfc':
+        return `<g transform="translate(${iconX - iconSize/2}, ${iconY - iconSize/2})">
+          <rect width="${iconSize}" height="${iconSize * 0.7}" fill="white" stroke="white" stroke-width="1"/>
+          <polygon points="${iconSize * 0.1},${iconSize * 0.7} ${iconSize * 0.9},${iconSize * 0.7} ${iconSize * 0.5},${iconSize * 0.3}" fill="white"/>
+        </g>`
+      case 'inventory':
+        return `<g transform="translate(${iconX - iconSize/2}, ${iconY - iconSize/2})">
+          <rect x="${iconSize * 0.2}" y="${iconSize * 0.2}" width="${iconSize * 0.6}" height="${iconSize * 0.6}" fill="white" stroke="white" stroke-width="1"/>
+          <rect x="${iconSize * 0.1}" y="${iconSize * 0.3}" width="${iconSize * 0.8}" height="${iconSize * 0.1}" fill="white"/>
+        </g>`
+      case 'store':
+        return `<g transform="translate(${iconX - iconSize/2}, ${iconY - iconSize/2})">
+          <rect x="${iconSize * 0.1}" y="${iconSize * 0.4}" width="${iconSize * 0.8}" height="${iconSize * 0.4}" fill="white"/>
+          <polygon points="${iconSize * 0.1},${iconSize * 0.4} ${iconSize * 0.9},${iconSize * 0.4} ${iconSize * 0.5},${iconSize * 0.1}" fill="white"/>
+        </g>`
+      case 'route-start':
+        return `<text x="${iconX}" y="${iconY + 4}" text-anchor="middle" fill="white" font-size="${size * 0.4}" font-weight="bold">S</text>`
+      case 'route-end':
+        return `<text x="${iconX}" y="${iconY + 4}" text-anchor="middle" fill="white" font-size="${size * 0.4}" font-weight="bold">E</text>`
+      default:
+        return `<circle cx="${iconX}" cy="${iconY}" r="${iconSize * 0.3}" fill="white"/>`
+    }
+  }
+
+  const colors = type === 'route-start' || type === 'route-end' 
+    ? getTypeColor(type) 
+    : status 
+      ? getStatusColor(status) 
+      : getTypeColor(type)
+
+  const pinTailHeight = size * 0.15
+
+  return `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size + pinTailHeight}" width="${size}" height="${size + pinTailHeight}">
+      <defs>
+        <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+          <feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="${colors.bg}" flood-opacity="0.3"/>
+        </filter>
+      </defs>
+      
+      <!-- Main pin circle -->
+      <circle cx="${size/2}" cy="${size/2}" r="${size/2 - 2}" 
+              fill="${colors.bg}" 
+              stroke="white" 
+              stroke-width="3" 
+              filter="url(#shadow)"/>
+      
+      <!-- Pin tail -->
+      <polygon points="${size/2 - 4},${size - 4} ${size/2 + 4},${size - 4} ${size/2},${size + pinTailHeight}" 
+               fill="${colors.border}" 
+               stroke="white" 
+               stroke-width="1"/>
+      
+      <!-- Icon -->
+      ${getIcon(type)}
+      
+      ${status === 'stockout_risk' ? `
+        <!-- Pulse ring for critical status -->
+        <circle cx="${size/2}" cy="${size/2}" r="${size/2 + 5}" 
+                fill="none" 
+                stroke="${colors.bg}" 
+                stroke-width="2" 
+                opacity="0.6">
+          <animate attributeName="r" values="${size/2 - 2};${size/2 + 8};${size/2 - 2}" dur="2s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0.8;0.2;0.8" dur="2s" repeatCount="indefinite"/>
+        </circle>
+      ` : ''}
+    </svg>
+  `
+}
 
 export function MapViewTab() {
   const mapRef = useRef<HTMLDivElement>(null)
@@ -164,7 +264,7 @@ export function MapViewTab() {
   const allLocations = [
     ...fulfillmentCenters.map(fc => ({ ...fc, displayName: `${fc.name} (MFC)` })),
     ...inventoryCenters.map(ic => ({ ...ic, displayName: `${ic.name} (Inventory)` })),
-    ...stores.map(s => ({ ...s, displayName: `${s.name} (Store)` }))
+    // ...stores.map(s => ({ ...s, displayName: `${s.name} (Store)` }))
   ]
 
   const getStatusColor = (status: string) => {
@@ -251,21 +351,16 @@ export function MapViewTab() {
   const addMarkers = (mapInstance: google.maps.Map) => {
     const newMarkers: google.maps.Marker[] = []
 
-    // Add MFC markers (Red warehouse/building icons)
+    // Add MFC markers with custom pins
     fulfillmentCenters.forEach((center) => {
       const marker = new google.maps.Marker({
         position: center.location,
         map: mapInstance,
         title: center.name,
         icon: {
-          url: 'data:image/svg+xml;base64,' + btoa(`
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32">
-              <path fill="#dc2626" stroke="#ffffff" stroke-width="2" d="M3 21h18v-2H3v2zm0-4h18v-2H3v2zm0-4h18v-2H3v2zm0-4h18V7H3v2zm0-4h18V3H3v2z"/>
-              <path fill="#dc2626" d="M12 2L2 7v2h20V7l-10-5z"/>
-            </svg>
-          `),
-          scaledSize: new google.maps.Size(32, 32),
-          anchor: new google.maps.Point(16, 32)
+          url: 'data:image/svg+xml;base64,' + btoa(createMapPinSVG('mfc', center.status, 44)),
+          scaledSize: new google.maps.Size(44, 50),
+          anchor: new google.maps.Point(22, 50)
         }
       })
 
@@ -290,21 +385,16 @@ export function MapViewTab() {
       newMarkers.push(marker)
     })
 
-    // Add Inventory Center markers (Green warehouse icons)
+    // Add Inventory Center markers with custom pins
     inventoryCenters.forEach((center) => {
       const marker = new google.maps.Marker({
         position: center.location,
         map: mapInstance,
         title: center.name,
         icon: {
-          url: 'data:image/svg+xml;base64,' + btoa(`
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28">
-              <path fill="#16a34a" stroke="#ffffff" stroke-width="2" d="M3 21h18v-2H3v2zm0-4h18v-2H3v2zm0-4h18v-2H3v2zm0-4h18V7H3v2z"/>
-              <path fill="#16a34a" d="M12 2L2 7v2h20V7l-10-5z"/>
-            </svg>
-          `),
-          scaledSize: new google.maps.Size(28, 28),
-          anchor: new google.maps.Point(14, 28)
+          url: 'data:image/svg+xml;base64,' + btoa(createMapPinSVG('inventory', center.status, 38)),
+          scaledSize: new google.maps.Size(38, 43),
+          anchor: new google.maps.Point(19, 43)
         }
       })
 
@@ -316,40 +406,6 @@ export function MapViewTab() {
             <div style="margin: 4px 0; color: #374151;"><strong>Status:</strong> <span style="color: ${getStatusColor(center.status)}; font-weight: bold;">${center.status.replace('_', ' ').toUpperCase()}</span></div>
             <div style="margin: 4px 0; color: #374151;"><strong>Inventory:</strong> ${center.inventory.toLocaleString()}/${center.capacity.toLocaleString()} units</div>
             <div style="margin: 4px 0; color: #374151;"><strong>Capacity Usage:</strong> ${Math.round((center.inventory / center.capacity) * 100)}%</div>
-          </div>
-        `
-      })
-
-      marker.addListener('click', () => {
-        infoWindow.open(mapInstance, marker)
-      })
-
-      newMarkers.push(marker)
-    })
-
-    // Add Store markers (Small circles)
-    stores.forEach((store) => {
-      const marker = new google.maps.Marker({
-        position: store.location,
-        map: mapInstance,
-        title: store.name,
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 6,
-          fillColor: getStatusColor(store.status),
-          fillOpacity: 0.9,
-          strokeColor: '#ffffff',
-          strokeWeight: 2
-        }
-      })
-
-      const infoWindow = new google.maps.InfoWindow({
-        content: `
-          <div style="padding: 12px; min-width: 180px;">
-            <h3 style="margin: 0 0 8px 0; font-weight: bold; color: #1f2937;">${store.name}</h3>
-            <div style="margin: 4px 0; color: #374151;"><strong>Type:</strong> Retail Store</div>
-            <div style="margin: 4px 0; color: #374151;"><strong>Status:</strong> <span style="color: ${getStatusColor(store.status)}; font-weight: bold;">${store.status.replace('_', ' ').toUpperCase()}</span></div>
-            <div style="margin: 4px 0; color: #374151;"><strong>Demand Level:</strong> <span style="font-weight: bold;">${store.demand.toUpperCase()}</span></div>
           </div>
         `
       })
@@ -402,14 +458,9 @@ export function MapViewTab() {
           map: map,
           title: `Source: ${sourceData.name}`,
           icon: {
-            url: 'data:image/svg+xml;base64,' + btoa(`
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="40" height="40">
-                <circle cx="12" cy="12" r="10" fill="#22c55e" stroke="#ffffff" stroke-width="2"/>
-                <text x="12" y="16" text-anchor="middle" fill="white" font-size="12" font-weight="bold">S</text>
-              </svg>
-            `),
-            scaledSize: new google.maps.Size(40, 40),
-            anchor: new google.maps.Point(20, 20)
+            url: 'data:image/svg+xml;base64,' + btoa(createMapPinSVG('route-start', undefined, 48)),
+            scaledSize: new google.maps.Size(48, 55),
+            anchor: new google.maps.Point(24, 55)
           }
         })
 
@@ -418,14 +469,9 @@ export function MapViewTab() {
           map: map,
           title: `Destination: ${destData.name}`,
           icon: {
-            url: 'data:image/svg+xml;base64,' + btoa(`
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="40" height="40">
-                <circle cx="12" cy="12" r="10" fill="#ef4444" stroke="#ffffff" stroke-width="2"/>
-                <text x="12" y="16" text-anchor="middle" fill="white" font-size="12" font-weight="bold">D</text>
-              </svg>
-            `),
-            scaledSize: new google.maps.Size(40, 40),
-            anchor: new google.maps.Point(20, 20)
+            url: 'data:image/svg+xml;base64,' + btoa(createMapPinSVG('route-end', undefined, 48)),
+            scaledSize: new google.maps.Size(48, 55),
+            anchor: new google.maps.Point(24, 55)
           }
         })
 
@@ -467,7 +513,7 @@ export function MapViewTab() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold flex items-center gap-2">
-          <MapPin className="h-6 w-6 text-primary" />
+          <MapPinIcon className="h-6 w-6 text-primary" />
           Distribution Map View
         </h2>
         <Badge variant="outline" className="text-sm">
@@ -476,12 +522,12 @@ export function MapViewTab() {
       </div>
 
       {/* Map with Control Panel */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid gap-6">
         {/* Interactive Google Maps */}
         <Card className="lg:col-span-3">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5" />
+              <MapPinIcon className="h-5 w-5" />
               Interactive Google Maps
             </CardTitle>
             {isShowingRoute && (
@@ -503,83 +549,112 @@ export function MapViewTab() {
               style={{ minHeight: '400px' }}
             />
             <p className="text-sm text-muted-foreground mt-2">
-              Map shows fulfillment centers (red warehouse icons) and inventory hubs (green warehouse icons) with stores (colored circles)
+              Interactive map showing distribution network with custom status-aware pins. Click pins for detailed information.
             </p>
             
             {/* Status Legend */}
-            <div className="mt-4 flex justify-center gap-6">
-              <div className="flex items-center gap-2 text-sm">
-                <div className="w-4 h-4 bg-red-600 rounded-sm" />
-                <span>MFC (Red)</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <div className="w-4 h-4 bg-green-600 rounded-sm" />
-                <span>Inventory Hub (Green)</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <div className="w-3 h-3 rounded-full bg-blue-500" />
-                <span>Store</span>
+            <div className="mt-4 space-y-3">
+              <div className="text-sm font-medium text-center">Map Legend</div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <div className="text-xs font-medium text-muted-foreground">Facility Types</div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <div className="w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center">
+                      <Warehouse className="w-2 h-2 text-white" />
+                    </div>
+                    <span>MFC</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <div className="w-4 h-4 bg-emerald-600 rounded-full flex items-center justify-center">
+                      <Package className="w-2 h-2 text-white" />
+                    </div>
+                    <span>Inventory Hub</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-xs font-medium text-muted-foreground">Status Colors</div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <div className="w-3 h-3 bg-green-500 rounded-full" />
+                    <span>Stable</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <div className="w-3 h-3 bg-amber-500 rounded-full" />
+                    <span>Stock Risk</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <div className="w-3 h-3 bg-red-500 rounded-full" />
+                    <span>Overstocked</span>
+                  </div>
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Control Panel */}
-        <div className="space-y-4">
-          {/* Fulfillment Centers */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Warehouse className="h-5 w-5" />
-                MFCs
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {fulfillmentCenters.map((center) => (
-                <div key={center.id} className={`p-3 rounded-lg border ${getStatusColorClass(center.status)}`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-sm">{center.name}</span>
-                    {getStatusIcon(center.status)}
-                  </div>
-                  <div className="text-xs space-y-1">
-                    <div>Inventory: {center.inventory}/{center.capacity}</div>
-                    <div className="text-muted-foreground">
-                      {Math.round((center.inventory / center.capacity) * 100)}% capacity
+        {/* <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Warehouse className="h-5 w-5" />
+                  MFCs
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {fulfillmentCenters.map((center) => (
+                  <div key={center.id} className={`p-2 rounded-lg border ${getStatusColorClass(center.status)}`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <MapPin type="mfc" status={center.status as any} size="sm" />
+                        <span className="font-medium text-sm truncate">{center.name}</span>
+                      </div>
+                      {getStatusIcon(center.status)}
                     </div>
+                    <div className="text-xs space-y-1">
+                      <div>Inventory: {center.inventory}/{center.capacity}</div>
+                      <div className="text-muted-foreground">
+                        {Math.round((center.inventory / center.capacity) * 100)}% capacity
+                      </div>
+                    </div>
+                    <Button size="sm" variant="outline" className="w-full mt-1 text-xs">
+                      View Details
+                    </Button>
                   </div>
-                  <Button size="sm" variant="outline" className="w-full mt-2 text-xs">
-                    View Details
-                  </Button>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+                ))}
+              </CardContent>
+            </Card>
 
-          {/* Stores */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Store className="h-5 w-5" />
-                Stores
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {stores.map((store) => (
-                <div key={store.id} className={`p-3 rounded-lg border ${getStatusColorClass(store.status)}`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-sm">{store.name}</span>
-                    {getStatusIcon(store.status)}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Package className="h-5 w-5" />
+                  Inventory Hubs
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {inventoryCenters.map((center) => (
+                  <div key={center.id} className={`p-2 rounded-lg border ${getStatusColorClass(center.status)}`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <MapPin type="inventory" status={center.status as any} size="sm" />
+                        <span className="font-medium text-sm truncate">{center.name}</span>
+                      </div>
+                      {getStatusIcon(center.status)}
+                    </div>
+                    <div className="text-xs space-y-1">
+                      <div>Inventory: {center.inventory}/{center.capacity}</div>
+                      <div className="text-muted-foreground">
+                        {Math.round((center.inventory / center.capacity) * 100)}% capacity
+                      </div>
+                    </div>
+                    <Button size="sm" variant="outline" className="w-full mt-1 text-xs">
+                      View Details
+                    </Button>
                   </div>
-                  <div className="text-xs">
-                    <Badge variant="outline" className="text-xs">
-                      {store.demand} demand
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div> */}
       </div>
 
       {/* Recommended Actions */}
@@ -617,7 +692,7 @@ export function MapViewTab() {
 
             <div className="p-4 border border-accent rounded-lg">
               <div className="flex items-center gap-2 mb-2">
-                <MapPin className="h-4 w-4 text-accent" />
+                <MapPinIcon className="h-4 w-4 text-accent" />
                 <span className="font-medium text-sm">Route Planning</span>
               </div>
               <p className="text-xs text-muted-foreground mb-3">
@@ -636,7 +711,7 @@ export function MapViewTab() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5" />
+              <MapPinIcon className="h-5 w-5" />
               Plan Route
             </DialogTitle>
           </DialogHeader>

@@ -1,14 +1,28 @@
 import { Home, Bell, BellOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { NotificationViewer, type Notification } from "./notification-viewer"
 import walmartLogo from "@/assets/log.png"
 
 interface NavbarProps {
   notificationsMuted: boolean
   onToggleNotifications: () => void
+  notifications: Notification[]
+  onNotificationRead: (id: string) => void
+  onNotificationDelete: (id: string) => void
+  onMarkAllAsRead: () => void
+  onClearAllNotifications: () => void
 }
 
-export function Navbar({ notificationsMuted, onToggleNotifications }: NavbarProps) {
+export function Navbar({ 
+  notificationsMuted, 
+  onToggleNotifications, 
+  notifications,
+  onNotificationRead,
+  onNotificationDelete,
+  onMarkAllAsRead,
+  onClearAllNotifications
+}: NavbarProps) {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-primary border-b border-border">
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
@@ -39,14 +53,27 @@ export function Navbar({ notificationsMuted, onToggleNotifications }: NavbarProp
             variant="ghost"
             size="sm"
             onClick={onToggleNotifications}
-            className="text-primary-foreground hover:bg-primary-foreground/20"
+            className="text-primary-foreground hover:bg-primary-foreground/20 gap-2"
           >
-            {notificationsMuted ? (
-              <BellOff className="h-4 w-4" />
-            ) : (
-              <Bell className="h-4 w-4" />
-            )}
+            {notificationsMuted ? <BellOff className="h-4 w-4" /> : "Mute"}
+            {notificationsMuted ? "Unmute" : <BellOff className="h-4 w-4" />}
           </Button>
+          
+          <NotificationViewer
+            notifications={notifications}
+            onNotificationRead={onNotificationRead}
+            onNotificationDelete={onNotificationDelete}
+            onMarkAllAsRead={onMarkAllAsRead}
+            onClearAll={onClearAllNotifications}
+          >
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-primary-foreground hover:bg-primary-foreground/20 relative"
+            >
+              <Bell className="h-4 w-4" />
+            </Button>
+          </NotificationViewer>
           <ThemeToggle />
         </div>
       </div>

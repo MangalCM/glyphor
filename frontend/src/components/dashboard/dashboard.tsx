@@ -1,26 +1,73 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card } from "@/components/ui/card"
 import { Navbar } from "./navbar"
 import { HeadlineTab } from "./headline-tab"
-import { ForecastingTab } from "./forecasting-tab"
+import { InventoryTab } from "./forecasting-tab"
 import { SpikeMonitoringTab } from "./spike-monitoring-tab"
 import { MapViewTab } from "./map-view-tab"
 import { NotificationPanel } from "./notification-panel"
 import { ExcelUpload } from "./excel-upload"
+import { NotificationProvider, useNotifications } from "@/hooks/use-notifications"
 import { Newspaper, TrendingUp, AlertTriangle, Map } from "lucide-react"
 
-export function Dashboard() {
+function DashboardContent() {
   const [notificationsMuted, setNotificationsMuted] = useState(false)
+  const {
+    notifications,
+    addNotification,
+    removeNotification,
+    markAsRead,
+    markAllAsRead,
+    clearAll
+  } = useNotifications()
 
   const toggleNotifications = () => {
     setNotificationsMuted(!notificationsMuted)
   }
+
+  // Demo: Add some sample notifications on component mount
+  useEffect(() => {
+    const sampleNotifications = [
+      {
+        title: "Low Inventory Alert",
+        message: "Store #1234 has critically low stock levels for Product SKU-ABC123",
+        type: "warning" as const
+      },
+      {
+        title: "Demand Spike Detected",
+        message: "Unusual demand pattern detected in Region Northeast for Electronics category",
+        type: "error" as const
+      },
+      {
+        title: "Successful Redistribution",
+        message: "Successfully redistributed 500 units from Store #5678 to Store #1234",
+        type: "success" as const
+      },
+      {
+        title: "System Update",
+        message: "Forecasting model has been updated with latest market data",
+        type: "info" as const
+      }
+    ]
+
+    // Add notifications with delay to simulate real-time
+    sampleNotifications.forEach((notification, index) => {
+      setTimeout(() => {
+        addNotification(notification)
+      }, (index + 1) * 2000)
+    })
+  }, [addNotification])
   return (
     <div className="min-h-screen bg-background">
       <Navbar 
         notificationsMuted={notificationsMuted}
         onToggleNotifications={toggleNotifications}
+        notifications={notifications}
+        onNotificationRead={markAsRead}
+        onNotificationDelete={removeNotification}
+        onMarkAllAsRead={markAllAsRead}
+        onClearAllNotifications={clearAll}
       />
       
       {/* Main Content */}
@@ -78,7 +125,7 @@ export function Dashboard() {
               </TabsContent>
 
               <TabsContent value="forecasting" className="mt-0">
-                <ForecastingTab />
+                <InventoryTab />
               </TabsContent>
 
               <TabsContent value="spike-monitoring" className="mt-0">
@@ -94,7 +141,15 @@ export function Dashboard() {
       </main>
 
       {/* Floating Notifications */}
-      <NotificationPanel muted={notificationsMuted} />
+      {!notificationsMuted && <NotificationPanel muted={notificationsMuted} />}
     </div>
+  )
+}
+
+export function Dashboard() {
+  return (
+    <NotificationProvider>
+      <DashboardContent />
+    </NotificationProvider>
   )
 }
