@@ -6,7 +6,7 @@ import { HeadlineTab } from "./headline-tab"
 import { InventoryTab } from "./forecasting-tab"
 import { SpikeMonitoringTab } from "./spike-monitoring-tab"
 import { MapViewTab } from "./map-view-tab"
-import { NotificationPanel } from "./notification-panel"
+
 import { ExcelUpload } from "./excel-upload"
 import { NotificationProvider, useNotifications } from "@/hooks/use-notifications"
 import { Newspaper, TrendingUp, AlertTriangle, Map } from "lucide-react"
@@ -140,8 +140,7 @@ function DashboardContent() {
         </div>
       </main>
 
-      {/* Floating Notifications */}
-      {!notificationsMuted && <NotificationPanel muted={notificationsMuted} />}
+
     </div>
   )
 }
