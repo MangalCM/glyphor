@@ -103,8 +103,6 @@ function DashboardContent() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar 
-        notificationsMuted={notificationsMuted}
-        onToggleNotifications={toggleNotifications}
         notifications={notifications}
         onNotificationRead={markAsRead}
         onNotificationDelete={removeNotification}
